@@ -1,0 +1,21 @@
+bot:
+  token: токен телеграм
+  app-url: http://localhost:8080/api/v1/bot
+file:
+  upload-dir: C:/app-uploads/
+server:
+  port: 8085
+spring:
+  application:
+    name: tg-bot
+  profiles:
+    active: dev
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate.ddl-auto: update
+    show-sql: false
+  thymeleaf:
+    prefix: classpath:/templates/
+    suffix: .html
+    cache: false

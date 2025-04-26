@@ -1,0 +1,14 @@
+bot:
+  token: 6388360217:AAF_vr2r6t8tLq37uG8DVVstqJT-Fk88xrA
+  url-search-request: http://localhost:8080/api/v1/bot/stock/search?search=
+  app-url: http://localhost:8080/api/v1/bot
+#security:
+#  remember-me:
+#    key: dev-super-secret-key))
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/bot_qt
+    username: qt_analytics
+    password: qt_analytics
+  jpa:
+    hibernate.ddl-auto: create
