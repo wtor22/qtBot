@@ -1,6 +1,7 @@
 package com.quartztop.bot.tg_bot.repositories;
 
 import com.quartztop.bot.tg_bot.entity.BotUser;
+import com.quartztop.bot.tg_bot.entity.BotUserStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -12,4 +13,6 @@ public interface BotUserRepositories extends JpaRepository<BotUser, Long> {
 
     Optional<BotUser> findByTelegramId(Long id);
 
+
+    long countByStatus(BotUserStatus botUserStatus);
 }

@@ -1,6 +1,5 @@
-package com.quartztop.bot.tg_bot.services;
+package com.quartztop.bot.tg_bot.responses.telegramResponses;
 
-import com.quartztop.bot.tg_bot.dto.TelegramActionDto;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 

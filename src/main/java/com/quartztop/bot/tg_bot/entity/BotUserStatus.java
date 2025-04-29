@@ -1,6 +1,6 @@
 package com.quartztop.bot.tg_bot.entity;
 
-public enum UserStatus {
+public enum BotUserStatus {
 
     REGISTERED,
     ACTIVE,

@@ -1,14 +1,16 @@
 package com.quartztop.bot.tg_bot.entity;
 
 import jakarta.persistence.*;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+@Entity
 @Setter
 @Getter
-@Entity
 @Table(name = "bot_users")
 public class BotUser {
 
@@ -22,6 +24,10 @@ public class BotUser {
     private LocalDateTime registeredAt;
 
     @Enumerated(EnumType.STRING)
-    private UserStatus status;
+    private BotUserStatus status;
+
+    @ManyToOne
+    @JoinColumn(name = "user_role")
+    private BotUserRole botUserRole;
 
 }

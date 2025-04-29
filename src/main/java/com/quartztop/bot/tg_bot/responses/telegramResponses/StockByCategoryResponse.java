@@ -1,4 +1,4 @@
-package com.quartztop.bot.tg_bot.dto;
+package com.quartztop.bot.tg_bot.responses.telegramResponses;
 
 import lombok.Data;
 

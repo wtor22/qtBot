@@ -1,14 +1,12 @@
-package com.quartztop.bot.tg_bot.services;
+package com.quartztop.bot.tg_bot.integration;
 
 import com.quartztop.bot.tg_bot.config.BotConfig;
-import com.quartztop.bot.tg_bot.dto.StockByCategoryResponse;
-import com.quartztop.bot.tg_bot.dto.StockByProductResponse;
-import com.quartztop.bot.tg_bot.dto.StockByStoreResponse;
-import com.quartztop.bot.tg_bot.dto.TelegramActionDto;
+import com.quartztop.bot.tg_bot.responses.telegramResponses.StockByCategoryResponse;
+import com.quartztop.bot.tg_bot.responses.telegramResponses.StockByProductResponse;
+import com.quartztop.bot.tg_bot.responses.telegramResponses.StockByStoreResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.util.UriUtils;
@@ -17,7 +15,6 @@ import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
-import java.util.Optional;
 
 @Service
 @Slf4j
@@ -35,7 +32,6 @@ public class StockClient {
 
     public List<StockByCategoryResponse> getStock(String search) {
 
-
         String url = botConfig.getAppUrl() + "/stock/search?search=" + UriUtils.encode(search, StandardCharsets.UTF_8);
         try {
             ResponseEntity<StockByCategoryResponse[]> response = restTemplate.getForEntity(url, StockByCategoryResponse[].class);
@@ -47,42 +43,6 @@ public class StockClient {
             log.error("🔥 Ошибка при получении остатков", e);
             return null;
         }
-    }
-
-    public List<TelegramActionDto> getActions() {
-        String url = botConfig.getAppUrl() + "/actions";
-        ResponseEntity<TelegramActionDto[]> response = restTemplate.getForEntity(url, TelegramActionDto[].class);
-        return Arrays.asList(Objects.requireNonNull(response.getBody()));
-    }
-
-    public NextActionResult getNextAction(Long currentId) {
-        String url = botConfig.getAppUrl() + "/actions/next";
-        if (currentId != null) {
-            url += "?currentId=" + currentId;
-        }
-        try {
-            ResponseEntity<TelegramActionDto> response =
-                    restTemplate.getForEntity(url, TelegramActionDto.class);
-            return new NextActionResult(true, response.getBody());
-
-        } catch (ResourceAccessException e) {
-            log.warn("⚠️ API недоступен: {}", e.getMessage());
-        } catch (HttpClientErrorException e) {
-            log.warn("❌ Ошибка от API: {}", e.getStatusCode());
-        } catch (Exception e) {
-            log.error("🔥 Неизвестная ошибка при получении nextAction", e);
-        }
-        return new NextActionResult(false, null); // не получилось достучаться
-    }
-
-    public TelegramActionDto getActionById(long actionId) {
-        String url = botConfig.getAppUrl() + "/actions/" + actionId;
-
-        log.error("PRINT URL " + url);
-
-        ResponseEntity<TelegramActionDto> response = restTemplate.getForEntity(url, TelegramActionDto.class);
-        return Objects.requireNonNull(response.getBody());
-
     }
 
     public String getStockBySearch(String search) {

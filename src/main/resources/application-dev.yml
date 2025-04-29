@@ -1,5 +1,5 @@
 bot:
-  token: 6388360217:AAF_vr2r6t8tLq37uG8DVVstqJT-Fk88xrA
+  token: 6156309157:AAFrorRGtBdi31lGkcQvX-w7GfC-0TBYM6U
   url-search-request: http://localhost:8080/api/v1/bot/stock/search?search=
   app-url: http://localhost:8080/api/v1/bot
 #security:
