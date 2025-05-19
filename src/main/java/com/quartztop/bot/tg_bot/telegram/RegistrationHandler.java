@@ -1,8 +1,11 @@
 package com.quartztop.bot.tg_bot.telegram;
 
-import com.quartztop.bot.tg_bot.entity.BotUser;
-import com.quartztop.bot.tg_bot.entity.BotUserStatus;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUserRole;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUserStatus;
+import com.quartztop.bot.tg_bot.entity.botUsers.Roles;
 import com.quartztop.bot.tg_bot.repositories.BotUserRepositories;
+import com.quartztop.bot.tg_bot.repositories.BotUserRoleRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.meta.api.objects.User;
@@ -17,10 +20,12 @@ public class RegistrationHandler {
 
     private final BotMessageUtils botMessageUtils;
     private final BotUserRepositories botUserRepositories;
+    private final BotUserRoleRepository botUserRoleRepository;
 
-    public RegistrationHandler(BotMessageUtils botMessageUtils, BotUserRepositories botUserRepositories) {
+    public RegistrationHandler(BotMessageUtils botMessageUtils, BotUserRepositories botUserRepositories, BotUserRoleRepository botUserRoleRepository) {
         this.botMessageUtils = botMessageUtils;
         this.botUserRepositories = botUserRepositories;
+        this.botUserRoleRepository = botUserRoleRepository;
     }
 
     void handleRegistrationSteps(BotUser user, Message message, Map<Long, String> userState) throws InterruptedException {
@@ -35,17 +40,19 @@ public class RegistrationHandler {
         switch (state) {
             case "AWAITING_PHONE" -> {
                 if (message.hasContact()) {
-                    log.error("MESSAGE HAVE CONTACT");
                     String phone = message.getContact().getPhoneNumber();
-                    log.error("PRINT PHONE  " + phone);
                     user.setPhoneNumber(phone);
-                    log.error("USER PHONE GETTED " + phone);
+                    BotUserRole botUserRole = botUserRoleRepository.findByRole(Roles.USER);
+                    user.setBotUserRole(botUserRole);
+                    String telegramLogin = message.getContact().getFirstName();
+                    if(message.getContact().getLastName() != null) telegramLogin = telegramLogin.concat(" " + message.getContact().getLastName());
+                    user.setTelegramFio(telegramLogin);
                     botUserRepositories.save(user);
 
-                    log.error("USER PHONESAVED");
                     botMessageUtils.sendText(chatId, "✅ Телефон сохранён!");
                     userState.put(chatId, "AWAITING_NAME");
                     botMessageUtils.sendText(chatId, "Теперь введи своё имя");
+                    log.info("Сохранен новый пользователь " + message.getContact().getFirstName() + " " + message.getContact().getLastName());
                 } else {
                     botMessageUtils.send(BotMenuService.sendPhoneRequestKeyboard(chatId));
                 }
@@ -91,6 +98,7 @@ public class RegistrationHandler {
             user.setLastName(tgUser.getLastName());
             user.setRegisteredAt(LocalDateTime.now());
             user.setStatus(BotUserStatus.REGISTERED);
+
             botUserRepositories.save(user);
             log.info("Зарегистрирован новый пользователь: " + telegramId);
         }

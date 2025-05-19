@@ -1,5 +1,6 @@
-package com.quartztop.bot.tg_bot.entity;
+package com.quartztop.bot.tg_bot.entity.activity;
 
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
 import jakarta.persistence.*;
 import lombok.*;
 

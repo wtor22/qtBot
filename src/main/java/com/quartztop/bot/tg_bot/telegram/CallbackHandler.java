@@ -1,14 +1,18 @@
 package com.quartztop.bot.tg_bot.telegram;
 
 import com.quartztop.bot.tg_bot.config.BotConfig;
-import com.quartztop.bot.tg_bot.entity.BotUser;
-import com.quartztop.bot.tg_bot.entity.ClickType;
+import com.quartztop.bot.tg_bot.entity.activity.TicketMessage;
+import com.quartztop.bot.tg_bot.entity.activity.TicketStatus;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
+import com.quartztop.bot.tg_bot.entity.activity.ClickType;
 import com.quartztop.bot.tg_bot.repositories.BotUserRepositories;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.NextActionResult;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.TelegramActionDto;
 import com.quartztop.bot.tg_bot.integration.ActionClient;
 import com.quartztop.bot.tg_bot.services.crud.ActionClickService;
+import com.quartztop.bot.tg_bot.services.crud.TicketMessageService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.expression.spel.ast.OpAnd;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
@@ -23,6 +27,7 @@ import org.telegram.telegrambots.meta.generics.TelegramClient;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Component
 @Slf4j
@@ -33,27 +38,31 @@ public class CallbackHandler {
     private final BotMessageUtils botMessageUtils;
     private final BotUserRepositories botUserRepositories;
     private final ActionClickService actionClickService;
+    private final TicketMessageService ticketMessageService;
+    private final TicketSessionService ticketSessionService;
 
-    public CallbackHandler(BotConfig botConfig, ActionClient actionClient, BotMessageUtils botMessageUtils, BotUserRepositories botUserRepositories, ActionClickService actionClickService) {
+    public CallbackHandler(BotConfig botConfig, ActionClient actionClient, BotMessageUtils botMessageUtils,
+                           BotUserRepositories botUserRepositories, ActionClickService actionClickService, TicketMessageService ticketMessageService, TicketSessionService ticketSessionService) {
         this.actionClient = actionClient;
         telegramClient = new OkHttpTelegramClient(botConfig.getToken());
         this.botMessageUtils = botMessageUtils;
         this.botUserRepositories = botUserRepositories;
         this.actionClickService = actionClickService;
+        this.ticketMessageService = ticketMessageService;
+        this.ticketSessionService = ticketSessionService;
     }
 
     public void handleCallback(CallbackQuery callbackQuery, Map<Long, String> userState, User tgUser) throws InterruptedException {
         String data = callbackQuery.getData();
         Long chatId = callbackQuery.getMessage().getChatId();
 
-        log.error("Print data " + data);
-
         BotUser user = botUserRepositories.findByTelegramId(tgUser.getId()).orElseThrow();
+
         if (data.startsWith("next_action_")) {
             String idStr = data.replace("next_action_", "");
             Long currentId = Long.parseLong(idStr);
-            NextActionResult result = actionClient.getNextAction(currentId);
-            actionClickService.create(null,user, ClickType.NEXT);
+            NextActionResult result = actionClient.getNextAction(currentId, user);
+            actionClickService.create(null, user, ClickType.NEXT);
             if (!result.isSuccess()) {
                 sendText(chatId, "⛔ Сейчас не могу получить информацию. Попробуй чуть позже.");
                 return;
@@ -72,6 +81,22 @@ public class CallbackHandler {
             TelegramActionDto actionDto = actionClient.getActionById(currentId);
             sendFullAction(chatId, actionDto);
         }
+        if (data.startsWith(("REPLY_TICKET"))) {
+            String ticketNumber = data.replace("REPLY_TICKET:","");
+            List<TicketMessage> listTicketMessage = ticketMessageService.getMessagesByTicket(ticketNumber);
+            TicketMessage ticketMessage = listTicketMessage.get(0);
+            if(!ticketMessage.getStatus().equals(TicketStatus.OPENED)) {
+                sendText(chatId, "Поздно! Кто то уже отвечает на этот вопрос.");
+                return;
+            }
+            ticketMessage.setStatus(TicketStatus.IN_WORK);
+            ticketSessionService.startSession(chatId, ticketMessage.getTicketNumber());
+            ticketMessageService.update(ticketMessage);
+            userState.put(chatId, "AWAITING_ANSWER_TICKET");
+            sendText(chatId, "Отлично! Дай свой ответ на вопрос.");
+
+
+        }
         if ("start_registration".equals(data)) {
             sendText(chatId, "📋  Отлично! Давай начнём регистрацию.");
             userState.put(chatId, "AWAITING_PHONE");
@@ -80,7 +105,6 @@ public class CallbackHandler {
     }
 
     private void sendFullAction(long chatId, TelegramActionDto actionDto) {
-        //String detailsUrl = "action_" + actionDto.getId();
         String nextAction = "next_action_" + actionDto.getId();
 
         String messageText = "<b>" + actionDto.getName() + "</b>\n\n"

@@ -1,4 +1,4 @@
-package com.quartztop.bot.tg_bot.responses.restResponses;
+package com.quartztop.bot.tg_bot.responses.restResponses.statisticsAction;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

@@ -1,5 +1,6 @@
 bot:
-  token: 6156309157:AAFrorRGtBdi31lGkcQvX-w7GfC-0TBYM6U
+  token: 6388360217:AAF34Deg5LtpTAEScEQEcMXGXV5D-WRPORY #BotConstruct
+#  token: 6156309157:AAFrorRGtBdi31lGkcQvX-w7GfC-0TBYM6U
   url-search-request: http://localhost:8080/api/v1/bot/stock/search?search=
   app-url: http://localhost:8080/api/v1/bot
 #security:
@@ -11,4 +12,4 @@ spring:
     username: qt_analytics
     password: qt_analytics
   jpa:
-    hibernate.ddl-auto: create
+    hibernate.ddl-auto: update

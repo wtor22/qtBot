@@ -2,15 +2,17 @@ package com.quartztop.bot.tg_bot.telegram;
 
 
 import com.quartztop.bot.tg_bot.config.BotConfig;
-import com.quartztop.bot.tg_bot.entity.ActionClick;
-import com.quartztop.bot.tg_bot.entity.BotUser;
-import com.quartztop.bot.tg_bot.entity.BotUserStatus;
-import com.quartztop.bot.tg_bot.entity.ClickType;
+import com.quartztop.bot.tg_bot.entity.activity.TicketMessage;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUserStatus;
+import com.quartztop.bot.tg_bot.entity.activity.ClickType;
 import com.quartztop.bot.tg_bot.integration.ActionClient;
 import com.quartztop.bot.tg_bot.integration.StockClient;
 import com.quartztop.bot.tg_bot.repositories.BotUserRepositories;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.NextActionResult;
 import com.quartztop.bot.tg_bot.services.crud.ActionClickService;
+import com.quartztop.bot.tg_bot.services.crud.SearchRequestService;
+import com.quartztop.bot.tg_bot.services.crud.TicketMessageService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -43,11 +45,15 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
     private final RegistrationHandler registrationHandler;
     private final BotUserRepositories botUserRepositories;
     private final ActionClickService actionClickService;
+    private final SearchRequestService searchRequestService;
+    private final BotMenuService botMenuService;
+    private final TicketMessageService ticketMessageService;
+    private final TicketSessionService ticketSessionService;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public TelegramBot(BotConfig botConfig, StockClient stockClient, ActionClient actionClient, CallbackHandler callbackHandler, BotMessageUtils botMessageUtils, RegistrationHandler registrationHandler, BotUserRepositories botUserRepositories, ActionClickService actionClickService) {
+    public TelegramBot(BotConfig botConfig, StockClient stockClient, ActionClient actionClient, CallbackHandler callbackHandler, BotMessageUtils botMessageUtils, RegistrationHandler registrationHandler, BotUserRepositories botUserRepositories, ActionClickService actionClickService, SearchRequestService searchRequestService, BotMenuService botMenuService, TicketMessageService ticketMessageService, TicketSessionService ticketSessionService) {
         this.botConfig = botConfig;
         telegramClient = new OkHttpTelegramClient(botConfig.getToken());
         this.stockClient = stockClient;
@@ -57,6 +63,10 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
         this.registrationHandler = registrationHandler;
         this.botUserRepositories = botUserRepositories;
         this.actionClickService = actionClickService;
+        this.searchRequestService = searchRequestService;
+        this.botMenuService = botMenuService;
+        this.ticketMessageService = ticketMessageService;
+        this.ticketSessionService = ticketSessionService;
     }
 
     private final Map<Long, String> userState = new ConcurrentHashMap<>();
@@ -116,12 +126,13 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                     userState.put(chatId, "SEARCH_MODE"); // ставим состояние поиска
                 }
                 case "📷 Фото изделий" -> {
-                    sendText(chatId, "🖼️ Вот фото изделий (заглушка)");
+                    actionClickService.create(null, user, ClickType.GET_PHOTO);
+                    send(botMenuService.linkImageMenu(chatId));
                     userState.put(chatId, "PHOTOS_MENU");
                 }
                 case "🎁 Акции" -> {
                     actionClickService.create(null, user, ClickType.ACTION_CLICK);
-                    NextActionResult result = actionClient.getNextAction(null);
+                    NextActionResult result = actionClient.getNextAction(null, user);
                     if (!result.isSuccess()) {
                         sendText(chatId, "⛔ Сейчас не могу получить информацию. Попробуй чуть позже.");
                         return;
@@ -135,11 +146,10 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                     } catch (InterruptedException e) {
                         throw new RuntimeException(e);
                     }
-
                     userState.put(chatId, "ACTIONS_MODE"); // ставим состояние
                 }
-                case "💬 Задать вопрос " -> {
-                    sendText(chatId, "✍️ Напиши свой вопрос, (Заглушка)");
+                case "❓Задать вопрос" -> {
+                    sendText(chatId, "✍️ Напиши свой вопрос");
                     userState.put(chatId, "TEXT_MODE");
                 }
                 default -> {
@@ -150,23 +160,42 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                             // здесь ты можешь вызывать свой StockClient и искать по артикулу
                             sendText(chatId, "🔍 Ищу товар: " + text);
                             String responseString = stockClient.getStockBySearch(text);
+                            searchRequestService.create(text,user);
 
                             if (responseString.length() < 4096) {
                                 sendText(chatId,responseString);
                             } else {
-                                log.warn("SIZE TEXT = " + responseString.length());
                                 sendText(chatId, "ОЙ ... Слишком большой ответ - Телеграм не пропускает. Попробуй уточнить запрос!");
                             }
                             sendText(chatId,"Что еще поищем? 🤖");
                             send(BotMenuService.mainMenu(chatId));
                         }
-                        case "CHATGPT_MODE" -> {
+                        case "TEXT_MODE" -> {
                             // Заглушка для ChatGPT — можно прикрутить OpenAI API тут
-                            sendText(chatId, "🤖 Ответ : (заглушка)");
+                            sendText(chatId, "✅ Спасибо, вопрос получен!\n" +
+                                    "\n" +
+                                    "я уже передал его администратору. Обычно он отвечает в течение часа.\n" +
+                                    "\n" +
+                                    "⏳ Пожалуйста, ожидай — тебе придёт уведомление, как только ответ появится.");
+
+                            TicketMessage ticket = ticketMessageService.addQuestion(user, text);
                             send(BotMenuService.mainMenu(chatId));
+                            actionClickService.create(ticket.getId(), user, ClickType.CREATE_QUESTION);
+                            botMessageUtils.sendAdminQuestionNotification(user,ticket);
                             userState.put(chatId, "MAIN_MENU");
                         }
-                        case "ACTIONS_MODE" -> {
+                        case "AWAITING_ANSWER_TICKET" -> {
+
+                            String ticketNumber = ticketSessionService.getTicketId(chatId);
+                            ticketMessageService.addAnswer(ticketNumber,user,text);
+                            sendText(chatId, "Ответ отправлен.");
+                            TicketMessage startTicketMessage = ticketMessageService.getFirstMessageTicketByTicketNumber(ticketNumber);
+                            String answer = "\uD83D\uDE4C Привет снова! \n\nЯ уже подготовил ответ на твой вопрос:\n\n\uD83D\uDCE8 Вопрос: \n" +
+                                    startTicketMessage.getText() + "\n\n\uD83D\uDC69\u200D\uD83D\uDCBC Ответ от нашего администратора: \n" +
+                                    text + "\n\n\uD83D\uDE42 Если ещё что-то нужно — пиши, я всегда на связи!";
+
+                            sendText(startTicketMessage.getBotUser().getTelegramId(),answer);
+
                         }
                         default -> {
                             sendText(chatId, "🤷 Я тебя не понял. Вот главное меню:");

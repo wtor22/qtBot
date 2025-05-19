@@ -1,4 +1,4 @@
-package com.quartztop.bot.tg_bot.entity;
+package com.quartztop.bot.tg_bot.entity.botUsers;
 
 import jakarta.persistence.*;
 import lombok.Getter;

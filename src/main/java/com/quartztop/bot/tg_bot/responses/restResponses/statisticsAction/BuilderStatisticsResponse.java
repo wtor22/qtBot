@@ -1,9 +1,7 @@
-package com.quartztop.bot.tg_bot.responses.restResponses;
+package com.quartztop.bot.tg_bot.responses.restResponses.statisticsAction;
 
-import com.quartztop.bot.tg_bot.entity.ActionClick;
-import com.quartztop.bot.tg_bot.entity.BotUserStatus;
-import com.quartztop.bot.tg_bot.entity.ClickType;
-import com.quartztop.bot.tg_bot.repositories.ActionClickRepositories;
+import com.quartztop.bot.tg_bot.entity.activity.ActionClick;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUserStatus;
 import com.quartztop.bot.tg_bot.repositories.BotUserRepositories;
 import com.quartztop.bot.tg_bot.services.crud.ActionClickService;
 import lombok.RequiredArgsConstructor;
@@ -22,7 +20,6 @@ public class BuilderStatisticsResponse {
 
     private final ActionClickService actionClickService;
     private final BotUserRepositories botUserRepositories;
-    private final ActionClickRepositories actionClickRepositories;
 
     public StatisticsResponses getStatisticsResponses() {
 
@@ -47,14 +44,10 @@ public class BuilderStatisticsResponse {
 
         long botUserCount = botUserRepositories.count();
         long botUserCountNotActive = botUserRepositories.countByStatus(BotUserStatus.REGISTERED);
-        long clickTabActionCount = actionClickRepositories.countByClickType(ClickType.ACTION_CLICK);
-        long clickTabActionNext = actionClickRepositories.countByClickType(ClickType.NEXT);
 
         return StatisticsResponses.builder()
                 .usersCount(botUserCount)
                 .usersNotActiveStatusCount(botUserCountNotActive)
-                .clickTabActions(clickTabActionCount)
-                .clickTabNextActionCount(clickTabActionNext)
                 .actionStatisticsList(actionStatisticsList)
                 .build();
     }

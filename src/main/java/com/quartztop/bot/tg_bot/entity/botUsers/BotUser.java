@@ -1,9 +1,7 @@
-package com.quartztop.bot.tg_bot.entity;
+package com.quartztop.bot.tg_bot.entity.botUsers;
 
 import jakarta.persistence.*;
-import lombok.Builder;
 import lombok.Getter;
-import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
@@ -17,10 +15,17 @@ public class BotUser {
     @Id
     private Long telegramId;
 
+    @Column(name = "user_name")
     private String username;
+    @Column(name = "first_name")
     private String firstName;
+    @Column(name = "last_name")
     private String lastName;
+    @Column(name = "phone")
     private String phoneNumber;
+    @Column(name = "telegram_fio")
+    private String telegramFio;
+    @Column(name = "time_registered")
     private LocalDateTime registeredAt;
 
     @Enumerated(EnumType.STRING)

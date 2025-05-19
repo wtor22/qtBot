@@ -1,7 +1,14 @@
 package com.quartztop.bot.tg_bot.telegram;
 
 import com.quartztop.bot.tg_bot.config.BotConfig;
+import com.quartztop.bot.tg_bot.dto.BotUserDTO;
+import com.quartztop.bot.tg_bot.entity.activity.TicketMessage;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUserRole;
+import com.quartztop.bot.tg_bot.entity.botUsers.Roles;
+import com.quartztop.bot.tg_bot.repositories.BotUserRoleRepository;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.TelegramActionDto;
+import com.quartztop.bot.tg_bot.services.crud.BotUserService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
@@ -24,12 +31,16 @@ import java.util.List;
 public class BotMessageUtils {
 
     private final TelegramClient telegramClient;
+    private final BotUserService botUserService;
+    private final BotUserRoleRepository botUserRoleRepository;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public BotMessageUtils(BotConfig botConfig) {
+    public BotMessageUtils(BotConfig botConfig, BotUserService botUserService, BotUserRoleRepository botUserRoleRepository) {
         telegramClient = new OkHttpTelegramClient(botConfig.getToken());
+        this.botUserService = botUserService;
+        this.botUserRoleRepository = botUserRoleRepository;
     }
 
     void sendText(long chatId, String text) {
@@ -99,6 +110,34 @@ public class BotMessageUtils {
         Thread.sleep(500);
     }
 
+    //public void sendBotUserAnswerNotification()
+
+    public void sendAdminQuestionNotification(BotUser user, TicketMessage ticket) {
+
+        String text = "❓ Новый вопрос от " + user.getFirstName() + ":\n\n"
+                + ticket.getText()
+                + "\n\n📎 Тикет №" + ticket.getTicketNumber();
+
+        InlineKeyboardButton button = new InlineKeyboardButton("✍ Ответить");
+        button.setCallbackData("REPLY_TICKET:" + ticket.getTicketNumber());
+
+        InlineKeyboardRow row = new InlineKeyboardRow();
+        row.add(button);
+        List<InlineKeyboardRow> keyboard = new ArrayList<>(List.of(row));
+
+        // создаём клавиатуру
+        InlineKeyboardMarkup markup = InlineKeyboardMarkup.builder()
+                .keyboard(keyboard)
+                .build();
+
+        BotUserRole roleAdmin = botUserRoleRepository.findByRole(Roles.ADMIN);
+        List<BotUserDTO> listAdmins = botUserService.getUsersDTOByRole(roleAdmin);
+
+        for(BotUserDTO userDTO : listAdmins) {
+            Long chatId = userDTO.getTelegramId();
+            sendTextWithKeyboard(chatId, text, markup);
+        }
+    }
     public static String sanitizeHtmlForTelegram(String html) {
 
         if (html == null) return "";
@@ -128,7 +167,7 @@ public class BotMessageUtils {
     public void sendWelcomeMessage(Long chatId) {
         String welcomeText = """
             <b>👋 Добро пожаловать!</b>
-            Я — бот компании <b>Кварцтоп</b> 🧱
+            Я — <b>SLABSTOCK BOT</b> 🧱
             
             Здесь ты найдёшь актуальные остатки, цены и новинки 📦
             

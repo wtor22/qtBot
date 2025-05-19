@@ -1,8 +1,11 @@
 package com.quartztop.bot.tg_bot.integration;
 
 import com.quartztop.bot.tg_bot.config.BotConfig;
+import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.NextActionResult;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.TelegramActionDto;
+import com.quartztop.bot.tg_bot.utils.PhoneUtils;
+import com.quartztop.bot.tg_bot.utils.Region;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -27,10 +30,15 @@ public class ActionClient {
         return Objects.requireNonNull(response.getBody());
     }
 
-    public NextActionResult getNextAction(Long currentId) {
-        String url = botConfig.getAppUrl() + "/actions/next";
+    public NextActionResult getNextAction(Long currentId, BotUser user) {
+
+        Region region = PhoneUtils.getRegionByPhone(user.getPhoneNumber());
+
+
+        String url = botConfig.getAppUrl() + "/actions/next" + "?region=" + region;
+
         if (currentId != null) {
-            url += "?currentId=" + currentId;
+            url += "&currentId=" + currentId;
         }
         try {
             ResponseEntity<TelegramActionDto> response =
