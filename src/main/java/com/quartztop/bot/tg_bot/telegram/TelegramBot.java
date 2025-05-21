@@ -2,11 +2,13 @@ package com.quartztop.bot.tg_bot.telegram;
 
 
 import com.quartztop.bot.tg_bot.config.BotConfig;
+import com.quartztop.bot.tg_bot.dto.TelegramMessageDto;
 import com.quartztop.bot.tg_bot.entity.activity.TicketMessage;
 import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
 import com.quartztop.bot.tg_bot.entity.botUsers.BotUserStatus;
 import com.quartztop.bot.tg_bot.entity.activity.ClickType;
 import com.quartztop.bot.tg_bot.integration.ActionClient;
+import com.quartztop.bot.tg_bot.integration.SendMessageToWeb;
 import com.quartztop.bot.tg_bot.integration.StockClient;
 import com.quartztop.bot.tg_bot.repositories.BotUserRepositories;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.NextActionResult;
@@ -50,10 +52,12 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
     private final TicketMessageService ticketMessageService;
     private final TicketSessionService ticketSessionService;
 
+    private final SendMessageToWeb sendMessageToWeb;
+
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public TelegramBot(BotConfig botConfig, StockClient stockClient, ActionClient actionClient, CallbackHandler callbackHandler, BotMessageUtils botMessageUtils, RegistrationHandler registrationHandler, BotUserRepositories botUserRepositories, ActionClickService actionClickService, SearchRequestService searchRequestService, BotMenuService botMenuService, TicketMessageService ticketMessageService, TicketSessionService ticketSessionService) {
+    public TelegramBot(BotConfig botConfig, StockClient stockClient, ActionClient actionClient, CallbackHandler callbackHandler, BotMessageUtils botMessageUtils, RegistrationHandler registrationHandler, BotUserRepositories botUserRepositories, ActionClickService actionClickService, SearchRequestService searchRequestService, BotMenuService botMenuService, TicketMessageService ticketMessageService, TicketSessionService ticketSessionService, SendMessageToWeb sendMessageToWeb) {
         this.botConfig = botConfig;
         telegramClient = new OkHttpTelegramClient(botConfig.getToken());
         this.stockClient = stockClient;
@@ -67,6 +71,7 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
         this.botMenuService = botMenuService;
         this.ticketMessageService = ticketMessageService;
         this.ticketSessionService = ticketSessionService;
+        this.sendMessageToWeb = sendMessageToWeb;
     }
 
     private final Map<Long, String> userState = new ConcurrentHashMap<>();
@@ -162,6 +167,8 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                             String responseString = stockClient.getStockBySearch(text);
                             searchRequestService.create(text,user);
 
+                            sendMessageToWeb.sendListStockRequest();
+
                             if (responseString.length() < 4096) {
                                 sendText(chatId,responseString);
                             } else {
@@ -180,6 +187,10 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
 
                             TicketMessage ticket = ticketMessageService.addQuestion(user, text);
                             send(BotMenuService.mainMenu(chatId));
+                            sendMessageToWeb.sendMessage(TelegramMessageDto.builder()
+                                    .text(text)
+                                    .username(user.getUsername())
+                                    .build());
                             actionClickService.create(ticket.getId(), user, ClickType.CREATE_QUESTION);
                             botMessageUtils.sendAdminQuestionNotification(user,ticket);
                             userState.put(chatId, "MAIN_MENU");
@@ -193,9 +204,7 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                             String answer = "\uD83D\uDE4C Привет снова! \n\nЯ уже подготовил ответ на твой вопрос:\n\n\uD83D\uDCE8 Вопрос: \n" +
                                     startTicketMessage.getText() + "\n\n\uD83D\uDC69\u200D\uD83D\uDCBC Ответ от нашего администратора: \n" +
                                     text + "\n\n\uD83D\uDE42 Если ещё что-то нужно — пиши, я всегда на связи!";
-
                             sendText(startTicketMessage.getBotUser().getTelegramId(),answer);
-
                         }
                         default -> {
                             sendText(chatId, "🤷 Я тебя не понял. Вот главное меню:");

@@ -3,11 +3,13 @@ package com.quartztop.bot.tg_bot.responses.restResponses.statisticsAction;
 import com.quartztop.bot.tg_bot.entity.activity.ActionClick;
 import com.quartztop.bot.tg_bot.entity.botUsers.BotUserStatus;
 import com.quartztop.bot.tg_bot.repositories.BotUserRepositories;
+import com.quartztop.bot.tg_bot.repositories.SearchRequestRepository;
 import com.quartztop.bot.tg_bot.services.crud.ActionClickService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -20,8 +22,11 @@ public class BuilderStatisticsResponse {
 
     private final ActionClickService actionClickService;
     private final BotUserRepositories botUserRepositories;
+    private final SearchRequestRepository searchRequestRepository;
 
     public StatisticsResponses getStatisticsResponses() {
+
+        List<String> listRequest = searchRequestRepository.findTextsByTimeRequestBetween(LocalDate.now().atStartOfDay(), LocalDate.now().plusDays(1).atStartOfDay());
 
         Map<Long, ActionStatistics> statisticsMap = new HashMap<>();
 
@@ -48,6 +53,7 @@ public class BuilderStatisticsResponse {
         return StatisticsResponses.builder()
                 .usersCount(botUserCount)
                 .usersNotActiveStatusCount(botUserCountNotActive)
+                .requestsStockToday(listRequest)
                 .actionStatisticsList(actionStatisticsList)
                 .build();
     }

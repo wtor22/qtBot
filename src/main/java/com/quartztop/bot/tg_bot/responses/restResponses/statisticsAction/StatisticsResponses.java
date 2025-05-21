@@ -14,4 +14,5 @@ public class StatisticsResponses {
     private long usersCount;
     private long usersNotActiveStatusCount;
     private List<ActionStatistics> actionStatisticsList;
+    private List<String> requestsStockToday;
 }
