@@ -24,6 +24,7 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -94,13 +95,44 @@ public class CallbackHandler {
             ticketMessageService.update(ticketMessage);
             userState.put(chatId, "AWAITING_ANSWER_TICKET");
             sendText(chatId, "Отлично! Дай свой ответ на вопрос.");
-
-
         }
         if ("start_registration".equals(data)) {
             sendText(chatId, "📋  Отлично! Давай начнём регистрацию.");
             userState.put(chatId, "AWAITING_PHONE");
             send(BotMenuService.sendPhoneRequestKeyboard(chatId));
+        }
+        if (data.startsWith("GENERAL_REPORT_INTER_STONE")) {
+            int yearReport = Integer.parseInt(data.replace("GENERAL_REPORT_INTER_STONE:",""));
+            LocalDate now = LocalDate.now();
+            String fileName = "gr_" + yearReport + "_at_" + now + ".xlsx";
+            botMessageUtils.sendDocument(chatId,yearReport,fileName,"inter_stone");
+            return;
+        }
+        if (data.startsWith("GENERAL_REPORT")) {
+            int yearReport = Integer.parseInt(data.replace("GENERAL_REPORT:",""));
+            LocalDate now = LocalDate.now();
+            String fileName = "gr_" + yearReport + "_at_" + now + ".xlsx";
+            botMessageUtils.sendDocument(chatId,yearReport,fileName,"general");
+            return;
+        }
+        if (data.startsWith("RATING_REPORT_INTER_STONE")) {
+            int yearReport = Integer.parseInt(data.replace("RATING_REPORT_INTER_STONE:",""));
+            LocalDate now = LocalDate.now();
+            String fileName = "rr_" + yearReport + "_at_" + now + ".xlsx";
+            botMessageUtils.sendRatingDocument(chatId,yearReport,fileName, "inter_stone");
+            return;
+        }
+        if (data.startsWith("RATING_REPORT")) {
+            int yearReport = Integer.parseInt(data.replace("RATING_REPORT:",""));
+            LocalDate now = LocalDate.now();
+            String fileName = "rr_" + yearReport + "_at_" + now + ".xlsx";
+            botMessageUtils.sendRatingDocument(chatId,yearReport,fileName, "general");
+            return;
+        }
+        if (data.startsWith("STOCK_REPORT")) {
+            LocalDate now = LocalDate.now();
+            String fileName = "stock_report_" + now + ".xlsx";
+            botMessageUtils.sendStockReport(chatId, fileName);
         }
     }
 

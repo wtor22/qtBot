@@ -70,8 +70,6 @@ public class RegistrationHandler {
                 if (message.hasText()) {
                     user.setLastName(message.getText());
                     user.setStatus(BotUserStatus.ACTIVE);
-
-
                     botUserRepositories.save(user);
 
                     botMessageUtils.sendText(chatId, "\uD83C\uDF89 Ура! Регистрация завершена.\n" +
@@ -82,7 +80,7 @@ public class RegistrationHandler {
                             "\n" +
                             "Если что-то понадобится — просто задай вопрос!");
                     userState.put(chatId, "MAIN_MENU");
-                    botMessageUtils.send(BotMenuService.mainMenu(chatId));
+                    botMessageUtils.send(BotMenuService.mainMenu(chatId, user));
                 }
             }
         }

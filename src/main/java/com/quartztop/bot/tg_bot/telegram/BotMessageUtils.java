@@ -6,6 +6,7 @@ import com.quartztop.bot.tg_bot.entity.activity.TicketMessage;
 import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
 import com.quartztop.bot.tg_bot.entity.botUsers.BotUserRole;
 import com.quartztop.bot.tg_bot.entity.botUsers.Roles;
+import com.quartztop.bot.tg_bot.integration.ReportRequestClient;
 import com.quartztop.bot.tg_bot.repositories.BotUserRoleRepository;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.TelegramActionDto;
 import com.quartztop.bot.tg_bot.services.crud.BotUserService;
@@ -13,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.telegram.telegrambots.client.okhttp.OkHttpTelegramClient;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
@@ -22,7 +24,9 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKe
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.meta.generics.TelegramClient;
 
+import java.io.ByteArrayInputStream;
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -34,13 +38,16 @@ public class BotMessageUtils {
     private final BotUserService botUserService;
     private final BotUserRoleRepository botUserRoleRepository;
 
+    private final ReportRequestClient reportRequestClient;
+
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public BotMessageUtils(BotConfig botConfig, BotUserService botUserService, BotUserRoleRepository botUserRoleRepository) {
+    public BotMessageUtils(BotConfig botConfig, BotUserService botUserService, BotUserRoleRepository botUserRoleRepository, ReportRequestClient reportRequestClient) {
         telegramClient = new OkHttpTelegramClient(botConfig.getToken());
         this.botUserService = botUserService;
         this.botUserRoleRepository = botUserRoleRepository;
+        this.reportRequestClient = reportRequestClient;
     }
 
     void sendText(long chatId, String text) {
@@ -51,6 +58,72 @@ public class BotMessageUtils {
                 .build();
         send(message);
     }
+
+    // Метод отправки отчетов EXEL
+    public void sendDocument(long chatId, int year, String fileName, String type) {
+
+        byte[] fileBytes = reportRequestClient.uploadGeneralReport(year, type);
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(fileBytes)) {
+            InputFile inputFile = new InputFile(inputStream, fileName);
+
+            SendDocument senDocument = SendDocument.builder()
+                    .chatId(chatId)
+                    .document(inputFile)
+                    .build();
+
+            send(senDocument);
+        } catch (IOException e) {
+            // Ловим, если вдруг с потоком что-то пойдёт не так
+            log.error("Ошибка при создании InputFile: {}", e.getMessage(), e);
+        }
+    }
+
+    public void sendRatingDocument(long chatId, int year, String fileName, String type) {
+
+        byte[] fileBytes = reportRequestClient.uploadRatingReport(year, type);
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(fileBytes)) {
+            InputFile inputFile = new InputFile(inputStream, fileName);
+
+            SendDocument senDocument = SendDocument.builder()
+                    .chatId(chatId)
+                    .document(inputFile)
+                    .build();
+
+            send(senDocument);
+        } catch (IOException e) {
+            // Ловим, если вдруг с потоком что-то пойдёт не так
+            log.error("Ошибка при создании InputFile: {}", e.getMessage(), e);
+        }
+    }
+
+    public void sendStockReport(long chatId, String fileName) {
+        byte[] fileBytes = reportRequestClient.uploadStockReport();
+
+        try (ByteArrayInputStream inputStream = new ByteArrayInputStream(fileBytes)) {
+            InputFile inputFile = new InputFile(inputStream, fileName);
+
+            SendDocument senDocument = SendDocument.builder()
+                    .chatId(chatId)
+                    .document(inputFile)
+                    .build();
+
+            send(senDocument);
+        } catch (IOException e) {
+            // Ловим, если вдруг с потоком что-то пойдёт не так
+            log.error("Ошибка при создании InputFile: {}", e.getMessage(), e);
+        }
+
+
+    }
+
+    public void send(SendDocument sendDocument) {
+        try {
+            telegramClient.execute(sendDocument);
+        } catch (TelegramApiException e) {
+            log.error("Ошибка при отправке документа: {}", e.getMessage(), e);
+        }
+    }
+
     void send(SendMessage message) {
         try {
             telegramClient.execute(message);

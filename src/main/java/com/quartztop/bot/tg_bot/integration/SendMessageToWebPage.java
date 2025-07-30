@@ -3,7 +3,6 @@ package com.quartztop.bot.tg_bot.integration;
 import com.quartztop.bot.tg_bot.config.BotConfig;
 import com.quartztop.bot.tg_bot.dto.TelegramMessageDto;
 import com.quartztop.bot.tg_bot.repositories.SearchRequestRepository;
-import com.quartztop.bot.tg_bot.services.crud.SearchRequestService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpEntity;
@@ -13,13 +12,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
+
 import java.util.List;
 
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class SendMessageToWeb {
+public class SendMessageToWebPage {
 
     private final RestTemplate restTemplate;
     private final BotConfig botConfig;

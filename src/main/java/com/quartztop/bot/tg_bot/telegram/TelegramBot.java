@@ -7,8 +7,10 @@ import com.quartztop.bot.tg_bot.entity.activity.TicketMessage;
 import com.quartztop.bot.tg_bot.entity.botUsers.BotUser;
 import com.quartztop.bot.tg_bot.entity.botUsers.BotUserStatus;
 import com.quartztop.bot.tg_bot.entity.activity.ClickType;
+import com.quartztop.bot.tg_bot.entity.botUsers.Roles;
 import com.quartztop.bot.tg_bot.integration.ActionClient;
-import com.quartztop.bot.tg_bot.integration.SendMessageToWeb;
+import com.quartztop.bot.tg_bot.integration.ReportRequestClient;
+import com.quartztop.bot.tg_bot.integration.SendMessageToWebPage;
 import com.quartztop.bot.tg_bot.integration.StockClient;
 import com.quartztop.bot.tg_bot.repositories.BotUserRepositories;
 import com.quartztop.bot.tg_bot.responses.telegramResponses.NextActionResult;
@@ -52,12 +54,12 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
     private final TicketMessageService ticketMessageService;
     private final TicketSessionService ticketSessionService;
 
-    private final SendMessageToWeb sendMessageToWeb;
+    private final SendMessageToWebPage sendMessageToWeb;
 
     @Value("${file.upload-dir}")
     private String uploadDir;
 
-    public TelegramBot(BotConfig botConfig, StockClient stockClient, ActionClient actionClient, CallbackHandler callbackHandler, BotMessageUtils botMessageUtils, RegistrationHandler registrationHandler, BotUserRepositories botUserRepositories, ActionClickService actionClickService, SearchRequestService searchRequestService, BotMenuService botMenuService, TicketMessageService ticketMessageService, TicketSessionService ticketSessionService, SendMessageToWeb sendMessageToWeb) {
+    public TelegramBot(BotConfig botConfig, StockClient stockClient, ActionClient actionClient, CallbackHandler callbackHandler, BotMessageUtils botMessageUtils, RegistrationHandler registrationHandler, BotUserRepositories botUserRepositories, ActionClickService actionClickService, SearchRequestService searchRequestService, BotMenuService botMenuService, TicketMessageService ticketMessageService, TicketSessionService ticketSessionService, SendMessageToWebPage sendMessageToWeb) {
         this.botConfig = botConfig;
         telegramClient = new OkHttpTelegramClient(botConfig.getToken());
         this.stockClient = stockClient;
@@ -123,7 +125,7 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
             }
             switch (text) {
                 case "/start" -> {
-                    send(BotMenuService.mainMenu(chatId));
+                    send(BotMenuService.mainMenu(chatId, user));
                     userState.put(chatId, "MAIN_MENU");
                 }
                 case "📦 Проверить наличие" -> {
@@ -157,25 +159,49 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                     sendText(chatId, "✍️ Напиши свой вопрос");
                     userState.put(chatId, "TEXT_MODE");
                 }
+                case "\uD83D\uDCCA Отчеты" -> {
+                    send(BotMenuService.reportMenu(chatId, user));
+                }
+                case "\uD83D\uDCCA Основной Отчет" -> {
+                    send(BotMenuService.linkGeneralReportMenu(chatId, user, "GENERAL_REPORT:"));
+                }
+                case "\uD83D\uDCCA Основной Отчет ИнтерСтоун" -> {
+                    send(BotMenuService.linkGeneralReportMenu(chatId, user, "GENERAL_REPORT_INTER_STONE:"));
+                }
+                case "\uD83D\uDCCA Рейтинги товаров" -> {
+                    send(BotMenuService.linkGeneralReportMenu(chatId, user, "RATING_REPORT:"));
+                }
+                case "\uD83D\uDCCA Рейтинги товаров ИнтерСтоун" -> {
+                    send(BotMenuService.linkGeneralReportMenu(chatId, user, "RATING_REPORT_INTER_STONE:"));
+                }
+                case "\uD83D\uDCCA Остатки товаров" -> {
+                    send(BotMenuService.linkStockReportMenu(chatId,user));
+                }
                 default -> {
                     state = userState.getOrDefault(chatId, "MAIN_MENU");
 
                     switch (state) {
                         case "SEARCH_MODE" -> {
-                            // здесь ты можешь вызывать свой StockClient и искать по артикулу
                             sendText(chatId, "🔍 Ищу товар: " + text);
                             String responseString = stockClient.getStockBySearch(text);
                             searchRequestService.create(text,user);
 
-                            sendMessageToWeb.sendListStockRequest();
+                            if (!responseString.startsWith("🚫 Ошибка подключения.")) {
+                                sendMessageToWeb.sendListStockRequest();
+                            }
 
                             if (responseString.length() < 4096) {
                                 sendText(chatId,responseString);
                             } else {
                                 sendText(chatId, "ОЙ ... Слишком большой ответ - Телеграм не пропускает. Попробуй уточнить запрос!");
                             }
-                            sendText(chatId,"Что еще поищем? 🤖");
-                            send(BotMenuService.mainMenu(chatId));
+                            if(responseString.contains("‼\uFE0F"))
+                                sendText(chatId, "⚠\uFE0F Примечание: \nесли видите значки ‼\uFE0F \uD83D\uDCDE — товар в ограниченном количестве. Рекомендуем уточнить наличие по телефону.!");
+                            if (!responseString.startsWith("🚫 Ошибка подключения.")) {
+                                sendText(chatId,"Что еще поищем? 🤖");
+                            }
+
+                            send(BotMenuService.mainMenu(chatId, user));
                         }
                         case "TEXT_MODE" -> {
                             // Заглушка для ChatGPT — можно прикрутить OpenAI API тут
@@ -186,7 +212,7 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                                     "⏳ Пожалуйста, ожидай — тебе придёт уведомление, как только ответ появится.");
 
                             TicketMessage ticket = ticketMessageService.addQuestion(user, text);
-                            send(BotMenuService.mainMenu(chatId));
+                            send(BotMenuService.mainMenu(chatId, user));
                             sendMessageToWeb.sendMessage(TelegramMessageDto.builder()
                                     .text(text)
                                     .username(user.getUsername())
@@ -208,14 +234,14 @@ public class TelegramBot implements SpringLongPollingBot, LongPollingSingleThrea
                         }
                         default -> {
                             sendText(chatId, "🤷 Я тебя не понял. Вот главное меню:");
-                            send(BotMenuService.mainMenu(chatId));
+                            send(BotMenuService.mainMenu(chatId, user));
                             userState.put(chatId, "MAIN_MENU");
                         }
                     }
                 }
             }
-            log.error("PRINT STATE " + state + "  --  " + userState.get(chatId) + " USER STATUS " + user.getStatus());
         }
+
     }
 
 

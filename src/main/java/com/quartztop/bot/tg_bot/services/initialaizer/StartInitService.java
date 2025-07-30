@@ -31,6 +31,7 @@ public class StartInitService {
                 case ADMIN -> botUserRole.setName("Админ");
                 case USER -> botUserRole.setName("Посетитель");
                 case MANAGER -> botUserRole.setName("Менеджер");
+                case ANALYST -> botUserRole.setName("Аналитик");
             }
             botUserRoleList.add(botUserRole);
         }

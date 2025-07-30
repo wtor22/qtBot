@@ -9,9 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestTemplate;
-import org.springframework.web.util.UriUtils;
 
-import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -32,7 +30,8 @@ public class StockClient {
 
     public List<StockByCategoryResponse> getStock(String search) {
 
-        String url = botConfig.getAppUrl() + "/stock/search?search=" + UriUtils.encode(search, StandardCharsets.UTF_8);
+        String url = botConfig.getAppUrl() + "/stock/search?search=" + search;
+
         try {
             ResponseEntity<StockByCategoryResponse[]> response = restTemplate.getForEntity(url, StockByCategoryResponse[].class);
             return Arrays.asList(Objects.requireNonNull(response.getBody()));
@@ -47,6 +46,7 @@ public class StockClient {
 
     public String getStockBySearch(String search) {
         List<StockByCategoryResponse> stockList = getStock(search);
+
         if (stockList == null) {
             return "🚫 Ошибка подключения. Попробуйте позже.";
         }
@@ -77,17 +77,19 @@ public class StockClient {
 
                 List<StockByStoreResponse> stores = product.getByStoreResponseList();
                 for (StockByStoreResponse store : stores) {
+                    String flagCallRequest = "";
+                    float countAvailable = store.getStock() + store.getInTransit() - store.getReserve();
+                    if (countAvailable < 0) countAvailable = 0;
+
+                    if(countAvailable < 5) flagCallRequest = "  ‼️ \uD83D\uDCDE";
                     response.append("\n").append(FREE_SPACE).append("<u>").append(store.getNameStore()).append("</u> ");
                     if (store.getStock() > 0) {
-                        response.append(": <b>").append(store.getStock()).append("</b>\n");
+                        response.append(": <b>").append(store.getStock()).append(flagCallRequest).append("</b>\n");
                     } else  {
                         response.append("<b>: 0.0</b>\n");
                     }
                     if(store.getReserve() > 0) response.append(FREE_SPACE).append("Забронировано: <b>").append(store.getReserve()).append("</b>\n");
                     if (store.getInTransit() > 0) response.append(FREE_SPACE).append("Ожидается: <b>").append(store.getInTransit()).append("</b>\n");
-
-                    float countAvailable = store.getStock() + store.getInTransit() - store.getReserve();
-                    if (countAvailable < 0) countAvailable = 0;
 
                     response.append(FREE_SPACE).append("Доступно к заказу: <b>").append(countAvailable).append("</b>\n\n");
                 }
